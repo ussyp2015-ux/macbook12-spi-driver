@@ -2609,7 +2609,7 @@ unregister_driver:
 	return ret;
 }
 
-static int appleacpi_remove(struct acpi_device *adev)
+static void appleacpi_remove(struct acpi_device *adev)
 {
 	struct appleacpi_spi_registration_info *reg_info;
 
@@ -2628,13 +2628,11 @@ static int appleacpi_remove(struct acpi_device *adev)
 
 	pr_info("acpi-device remove done: %s\n", acpi_device_hid(adev));
 
-	return 0;
 }
 
 static struct acpi_driver appleacpi_driver = {
 	.name		= "appleacpi",
 	.class		= "topcase", /* ? */
-	.owner		= THIS_MODULE,
 	.ids		= applespi_acpi_match,
 	.ops		= {
 		.add		= appleacpi_probe,
@@ -2642,7 +2640,7 @@ static struct acpi_driver appleacpi_driver = {
 	},
 };
 
-module_acpi_driver(appleacpi_driver)
+module_acpi_driver(appleacpi_driver);
 
 #else
 
