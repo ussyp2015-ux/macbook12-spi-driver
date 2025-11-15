@@ -121,6 +121,18 @@ static unsigned int fnmode = 1;
 module_param(fnmode, uint, 0644);
 MODULE_PARM_DESC(fnmode, "Mode of Fn key on Apple keyboards (0 = disabled, [1] = fkeyslast, 2 = fkeysfirst)");
 
+/* Fallback SPI timing (in microseconds) for kernels without transfer delay
+ * support. If zero, no fallback delay is applied. These allow tuning when
+ * `struct spi_transfer.delay_usecs` is not available.
+ */
+static unsigned int spi_delay_us;
+module_param(spi_delay_us, uint, 0644);
+MODULE_PARM_DESC(spi_delay_us, "CS-to-clock delay in microseconds (fallback when spi_transfer.delay_usecs is unavailable)");
+
+static unsigned int spi_rw_chg_delay_us = SPI_RW_CHG_DELAY_US;
+module_param(spi_rw_chg_delay_us, uint, 0644);
+MODULE_PARM_DESC(spi_rw_chg_delay_us, "Read/write change delay in microseconds (fallback)");
+
 static unsigned int fnremap;
 module_param(fnremap, uint, 0644);
 MODULE_PARM_DESC(fnremap, "Remap Fn key ([0] = no-remap; 1 = left-ctrl, 2 = left-shift, 3 = left-alt, 4 = left-meta, 6 = right-shift, 7 = right-alt, 8 = right-meta)");
@@ -698,6 +710,21 @@ static int applespi_async(struct applespi_data *applespi,
 
 	message->complete = applespi_async_complete;
 	message->context = info;
+
+	/* If the kernel doesn't support per-transfer delay_usecs, allow a
+	 * module-configurable udelay fallback to preserve timing between
+	 * transfers. This is only applied when a non-zero fallback value is
+	 * provided by the module parameter(s).
+	 */
+	if (message == &applespi->rd_m) {
+		if (spi_delay_us)
+			udelay(spi_delay_us);
+	} else if (message == &applespi->wr_m) {
+		if (spi_rw_chg_delay_us)
+			udelay(spi_rw_chg_delay_us);
+		if (spi_delay_us)
+			udelay(spi_delay_us);
+	}
 
 	sts = spi_async(applespi->spi, message);
 	if (sts)
