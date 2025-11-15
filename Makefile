@@ -13,13 +13,15 @@ KDIR := /lib/modules/$(KVERSION)/build
 PWD := $(shell pwd)
 
 all:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) KBUILD_MODPOST_WARN=1 modules
+
 
 clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 
+
 install:
-	$(MAKE) -C $(KDIR) M=$(PWD) modules_install
+	$(MAKE) -C $(KDIR) M=$(PWD) KBUILD_MODPOST_WARN=1 modules_install
 
 test: all
 	sync
