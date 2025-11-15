@@ -171,22 +171,24 @@ static int appleals_get_config(struct appleals_device *als_dev,
 	return 0;
 }
 
-static int appleals_set_config(struct appleals_device *als_dev,
-			       unsigned int field_usage, __s32 value)
+#if IS_ENABLED(CONFIG_IIO)
+static int appleals_set_enum_config(struct appleals_device *als_dev,
+	u16 usage, u8 value)
 {
 	struct hid_field *field;
+	int rc;
 
-	field = appleib_find_report_field(als_dev->cfg_report, field_usage);
+	field = appleals_find_field_by_usage(als_dev, usage);
 	if (!field)
-		return -EINVAL;
+		return -ENODEV;
 
-	appleals_set_field_value(als_dev, field, value);
+	rc = appleals_set_field_value(als_dev, field, value);
+	if (rc)
+		dev_err(als_dev->log_dev, "Failed to set enum config: %d\n", rc);
 
-	return 0;
+	return rc;
 }
-
-static int appleals_set_enum_config(struct appleals_device *als_dev,
-				    unsigned int field_usage,
+#endif
 				    unsigned int value_usage)
 {
 	struct hid_field *field;
@@ -394,9 +396,11 @@ static const struct iio_chan_spec appleals_channels[] = {
 	}
 };
 
+#if IS_ENABLED(CONFIG_IIO)
 static const struct iio_trigger_ops appleals_trigger_ops = {
 	.set_state = &appleals_enable_events,
 };
+#endif
 
 static const struct iio_info appleals_info = {
 	.read_raw = &appleals_read_raw,
