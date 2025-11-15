@@ -46,7 +46,6 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/efi.h>
-#include <linux/efivar.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/jiffies.h>
@@ -1793,6 +1792,8 @@ static u32 applespi_notify(acpi_handle gpe_device, u32 gpe, void *context)
 	return ACPI_INTERRUPT_HANDLED;
 }
 
+/* EFI variable helpers: only if efivar support is enabled in the kernel */
+#if IS_ENABLED(CONFIG_EFIVAR)
 static int applespi_get_saved_bl_level(struct applespi_data *applespi)
 {
 	struct efivar_entry *efivar_entry;
@@ -1805,15 +1806,15 @@ static int applespi_get_saved_bl_level(struct applespi_data *applespi)
 		return -ENOMEM;
 
 	memcpy(efivar_entry->var.VariableName, EFI_BL_LEVEL_NAME,
-	       sizeof(EFI_BL_LEVEL_NAME));
+		   sizeof(EFI_BL_LEVEL_NAME));
 	efivar_entry->var.VendorGuid = EFI_BL_LEVEL_GUID;
 	efi_data_len = sizeof(efi_data);
 
 	sts = efivar_entry_get(efivar_entry, NULL, &efi_data_len, &efi_data);
 	if (sts && sts != -ENOENT)
 		dev_warn(&applespi->spi->dev,
-			 "Error getting backlight level from EFI vars: %d\n",
-			 sts);
+				 "Error getting backlight level from EFI vars: %d\n",
+				 sts);
 
 	kfree(efivar_entry);
 
@@ -1837,11 +1838,24 @@ static void applespi_save_bl_level(struct applespi_data *applespi,
 		   EFI_VARIABLE_RUNTIME_ACCESS;
 
 	sts = efivar_entry_set_safe((efi_char16_t *)EFI_BL_LEVEL_NAME, efi_guid,
-				    efi_attr, true, efi_data_len, &efi_data);
+					efi_attr, true, efi_data_len, &efi_data);
 	if (sts)
 		dev_warn(&applespi->spi->dev,
 			 "Error saving backlight level to EFI vars: %d\n", sts);
 }
+#else
+static int applespi_get_saved_bl_level(struct applespi_data *applespi)
+{
+	/* efivar not available: report not-found */
+	return -ENOENT;
+}
+
+static void applespi_save_bl_level(struct applespi_data *applespi,
+				   unsigned int level)
+{
+	/* efivar not available: nothing to do */
+}
+#endif
 
 static void applespi_enable_early_event_tracing(struct device *dev)
 {
