@@ -29,6 +29,8 @@ jobs:
 
     - name: Prepare kernel build
       run: |
+        # Create a default kernel config so "modules_prepare" can run
+        make -C linux-${{ env.KERNEL_VERSION }} defconfig
         make -C linux-${{ env.KERNEL_VERSION }} modules_prepare
 
     - name: Build modules
