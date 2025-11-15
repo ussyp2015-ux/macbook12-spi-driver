@@ -1,0 +1,53 @@
+name: CI - build against Linux 6.12.8
+
+on:
+  push:
+    branches: [ touchbar-driver-hid-driver ]
+  pull_request:
+    branches: [ main, master, touchbar-driver-hid-driver ]
+
+jobs:
+  build:
+    name: Build modules on Linux 6.12.8
+    runs-on: ubuntu-latest
+    env:
+      KERNEL_VERSION: 6.12.8
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential bc libncurses-dev flex bison libssl-dev kmod ccache wget xz-utils
+
+    - name: Download kernel
+      run: |
+        wget -q https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${{ env.KERNEL_VERSION }}.tar.xz
+        tar -xf linux-${{ env.KERNEL_VERSION }}.tar.xz
+
+    - name: Prepare kernel build
+      run: |
+        make -C linux-${{ env.KERNEL_VERSION }} modules_prepare
+
+    - name: Build modules
+      run: |
+        set -x
+        make -C linux-${{ env.KERNEL_VERSION }} M=$GITHUB_WORKSPACE KBUILD_MODPOST_WARN=1 modules 2>&1 | tee build.log
+
+    - name: Upload build log
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log-6.12.8
+        path: build.log
+
+    - name: Upload module artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: modules-6.12.8
+        path: |
+          applespi.ko
+          apple-ibridge.ko
+          apple-ib-tb.ko
+          apple-ib-als.ko
