@@ -150,11 +150,12 @@ static __s32 appleals_get_field_value(struct appleals_device *als_dev,
 	return field->value[0];
 }
 
-static void appleals_set_field_value(struct appleals_device *als_dev,
-				     struct hid_field *field, __s32 value)
+static int appleals_set_field_value(struct appleals_device *als_dev,
+					 struct hid_field *field, __s32 value)
 {
 	hid_set_field(field, 0, value);
 	hid_hw_request(als_dev->hid_dev, field->report, HID_REQ_SET_REPORT);
+	return 0;
 }
 
 static int appleals_get_config(struct appleals_device *als_dev,
@@ -189,7 +190,9 @@ static int appleals_set_enum_config(struct appleals_device *als_dev,
 	return rc;
 }
 #endif
-				    unsigned int value_usage)
+static int appleals_set_config_by_usage(struct appleals_device *als_dev,
+					unsigned int field_usage,
+					unsigned int value_usage)
 {
 	struct hid_field *field;
 	int value;
@@ -203,6 +206,18 @@ static int appleals_set_enum_config(struct appleals_device *als_dev,
 		appleals_set_field_value(als_dev, field, value);
 
 	return 0;
+}
+
+static int appleals_set_config(struct appleals_device *als_dev,
+							   unsigned int field_usage, __s32 value)
+{
+	struct hid_field *field;
+
+	field = appleib_find_report_field(als_dev->cfg_report, field_usage);
+	if (!field)
+		return -EINVAL;
+
+	return appleals_set_field_value(als_dev, field, value);
 }
 
 static void appleals_update_dyn_sensitivity(struct appleals_device *als_dev,
