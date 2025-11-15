@@ -251,6 +251,7 @@ static int appleals_hid_event(struct hid_device *hdev, struct hid_field *field,
 	return rc;
 }
 
+#if IS_ENABLED(CONFIG_IIO)
 static int appleals_enable_events(struct iio_trigger *trig, bool enable)
 {
 	struct appleals_device *als_dev = iio_trigger_get_drvdata(trig);
@@ -269,6 +270,7 @@ static int appleals_enable_events(struct iio_trigger *trig, bool enable)
 
 	return 0;
 }
+#endif
 
 static int appleals_read_raw(struct iio_dev *iio_dev,
 			     struct iio_chan_spec const *chan,
@@ -453,6 +455,7 @@ static void appleals_config_sensor(struct appleals_device *als_dev,
 		hid_device_io_stop(als_dev->hid_dev);
 }
 
+#if IS_ENABLED(CONFIG_IIO)
 static int appleals_config_iio(struct appleals_device *als_dev)
 {
 	struct iio_dev *iio_dev;
@@ -525,6 +528,13 @@ free_iio_dev:
 
 	return rc;
 }
+#else
+static int appleals_config_iio(struct appleals_device *als_dev)
+{
+	/* IIO not available in this kernel: behave as no-op */
+	return 0;
+}
+#endif
 
 static int appleals_probe(struct hid_device *hdev,
 			  const struct hid_device_id *id)
@@ -567,15 +577,21 @@ static void appleals_remove(struct hid_device *hdev)
 {
 	struct appleals_device *als_dev =
 		appleib_get_drvdata(hid_get_drvdata(hdev),
-				    &appleals_hid_driver);
+					&appleals_hid_driver);
 
-	iio_device_unregister(als_dev->iio_dev);
+#if IS_ENABLED(CONFIG_IIO)
+	if (als_dev->iio_dev) {
+		iio_device_unregister(als_dev->iio_dev);
 
-	iio_trigger_unregister(als_dev->iio_trig);
-	iio_trigger_free(als_dev->iio_trig);
+		if (als_dev->iio_trig) {
+			iio_trigger_unregister(als_dev->iio_trig);
+			iio_trigger_free(als_dev->iio_trig);
+		}
 
-	iio_triggered_buffer_cleanup(als_dev->iio_dev);
-	iio_device_free(als_dev->iio_dev);
+		iio_triggered_buffer_cleanup(als_dev->iio_dev);
+		iio_device_free(als_dev->iio_dev);
+	}
+#endif
 
 	als_dev->hid_dev = NULL;
 }
