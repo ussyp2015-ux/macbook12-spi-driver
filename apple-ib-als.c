@@ -393,7 +393,7 @@ static const struct iio_chan_spec appleals_channels[] = {
 };
 
 static const struct iio_trigger_ops appleals_trigger_ops = {
-	.set_trigger_state = &appleals_enable_events,
+	.set_state = &appleals_enable_events,
 };
 
 static const struct iio_info appleals_info = {
@@ -460,7 +460,7 @@ static int appleals_config_iio(struct appleals_device *als_dev)
 	struct appleals_device **priv;
 	int rc;
 
-	iio_dev = iio_device_alloc(sizeof(als_dev));
+	iio_dev = devm_iio_device_alloc(&als_dev->hid_dev->dev, sizeof(*als_dev));
 	if (!iio_dev)
 		return -ENOMEM;
 
@@ -482,13 +482,13 @@ static int appleals_config_iio(struct appleals_device *als_dev)
 		goto free_iio_dev;
 	}
 
-	iio_trig = iio_trigger_alloc("%s-dev%d", iio_dev->name, iio_dev->id);
+	iio_trig = devm_iio_trigger_alloc(&als_dev->hid_dev->dev, "%s-dev%d",
+					  iio_dev->name, iio_dev->id);
 	if (!iio_trig) {
 		rc = -ENOMEM;
 		goto clean_trig_buf;
 	}
 
-	iio_trig->dev.parent = &als_dev->hid_dev->dev;
 	iio_trig->ops = &appleals_trigger_ops;
 	iio_trigger_set_drvdata(iio_trig, als_dev);
 
