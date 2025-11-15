@@ -1,0 +1,57 @@
+name: CI - Build kernel modules against selected kernels
+
+on:
+  push:
+    branches: [ touchbar-driver-hid-driver, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-modules:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        kernel: [ '6.17', '6.18' ]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install build deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libncurses-dev bison flex bc libssl-dev libelf-dev wget xz-utils
+
+    - name: Download kernel source
+      run: |
+        KVER=${{ matrix.kernel }}
+        URL="https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KVER}.tar.xz"
+        echo "Downloading $URL"
+        wget -q "$URL" -O linux.tar.xz
+        tar -xf linux.tar.xz
+        ls -ld linux-*
+        echo "KDIR=$(pwd)/linux-${{ matrix.kernel }}" >> $GITHUB_ENV
+
+    - name: Prepare kernel build tree
+      working-directory: linux-${{ matrix.kernel }}
+      run: |
+        make defconfig
+        make -j$(nproc) modules_prepare
+
+    - name: Build module
+      env:
+        KDIR: ${{ env.KDIR }}
+      run: |
+        pwd
+        echo "Building against kernel tree: $KDIR"
+        make KDIR="$KDIR" clean
+        make KDIR="$KDIR" all 2>&1 | tee build.log || (tail -n 200 build.log && exit 1)
+
+    - name: Collect artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts-${{ matrix.kernel }}
+        path: |
+          build.log
+          *.ko
+          ./*.o
