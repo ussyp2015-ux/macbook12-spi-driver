@@ -46,6 +46,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/efi.h>
+#include <linux/efivar.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/jiffies.h>
@@ -587,7 +588,9 @@ static void applespi_setup_read_txfrs(struct applespi_data *applespi)
 	memset(dl_t, 0, sizeof(*dl_t));
 	memset(rd_t, 0, sizeof(*rd_t));
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,0,0)
 	dl_t->delay_usecs = applespi->spi_settings.spi_cs_delay;
+#endif
 
 	rd_t->rx_buf = applespi->rx_buffer;
 	rd_t->len = APPLESPI_PACKET_SIZE;
@@ -616,14 +619,20 @@ static void applespi_setup_write_txfrs(struct applespi_data *applespi)
 	 * end up with an extra unnecessary (but harmless) cs assertion and
 	 * deassertion.
 	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,0,0)
 	wt_t->delay_usecs = SPI_RW_CHG_DELAY_US;
+#endif
 	wt_t->cs_change = 1;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,0,0)
 	dl_t->delay_usecs = applespi->spi_settings.spi_cs_delay;
+#endif
 
 	wr_t->tx_buf = applespi->tx_buffer;
 	wr_t->len = APPLESPI_PACKET_SIZE;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6,0,0)
 	wr_t->delay_usecs = SPI_RW_CHG_DELAY_US;
+#endif
 
 	st_t->rx_buf = applespi->tx_status;
 	st_t->len = APPLESPI_STATUS_SIZE;
@@ -1208,7 +1217,7 @@ static const struct file_operations applespi_tp_dim_fops = {
 	.owner = THIS_MODULE,
 	.open = applespi_tp_dim_open,
 	.read = applespi_tp_dim_read,
-	.llseek = no_llseek,
+	.llseek = noop_llseek,
 };
 
 static void report_finger_data(struct input_dev *input, int slot,
@@ -2109,7 +2118,7 @@ static void applespi_drain_reads(struct applespi_data *applespi)
 	spin_unlock_irqrestore(&applespi->cmd_msg_lock, flags);
 }
 
-static int applespi_remove(struct spi_device *spi)
+static void applespi_remove(struct spi_device *spi)
 {
 	struct applespi_data *applespi = spi_get_drvdata(spi);
 
@@ -2122,8 +2131,6 @@ static int applespi_remove(struct spi_device *spi)
 	applespi_drain_reads(applespi);
 
 	debugfs_remove_recursive(applespi->debugfs_root);
-
-	return 0;
 }
 
 static void applespi_shutdown(struct spi_device *spi)
