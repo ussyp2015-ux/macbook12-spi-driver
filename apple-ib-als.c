@@ -190,23 +190,7 @@ static int appleals_set_enum_config(struct appleals_device *als_dev,
 	return rc;
 }
 #endif
-static int appleals_set_config_by_usage(struct appleals_device *als_dev,
-					unsigned int field_usage,
-					unsigned int value_usage)
-{
-	struct hid_field *field;
-	int value;
 
-	field = appleib_find_report_field(als_dev->cfg_report, field_usage);
-	if (!field)
-		return -EINVAL;
-
-	value = appleals_get_field_value_for_usage(field, value_usage);
-	if (value >= 0)
-		appleals_set_field_value(als_dev, field, value);
-
-	return 0;
-}
 
 static int appleals_set_config(struct appleals_device *als_dev,
 							   unsigned int field_usage, __s32 value)
